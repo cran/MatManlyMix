@@ -1,0 +1,4 @@
+useDynLib(MatManlyMix, .registration = TRUE)
+importFrom("stats", "var")
+export(MatManly.EM)
+export(MatManly.init)
