@@ -32,7 +32,7 @@ double mGpdf_Manly_AR_Reg(int p, int T, int q, double *la, double **Y, double **
 
 	tA(tMu, p, T, Mu);
 	
-  	Manly_trans(p, T, la, Y, MY);
+  	Manly_trans_AR(p, T, la, Y, MY);
 	mat_(p, T, MY, Mu);
 
 	tA(MY, T, p, tMY);
@@ -264,7 +264,7 @@ double Q_AR_Reg(int n, int p, int T, int q, double *la_nonzero, int *index, doub
 	}
 
 
-	Manly_trans_whole(n, p, T, la, Y, MY);
+	Manly_trans_whole_AR(n, p, T, la, Y, MY);
 
 	res = 0;
 
@@ -588,7 +588,7 @@ double Mstep_Manly_AR_Reg(int p, int T, int n, int q, int K, double *misc_double
 		cpyv(gamma, k, n, gamma_k);		
 		cpyk(invPsi, T, T, k, invPsik);
 
-		Manly_trans_whole(n, p, T, la[k], Y, MY);
+		Manly_trans_whole_AR(n, p, T, la[k], Y, MY);
 
 		for(i=0; i<n; i++){
 

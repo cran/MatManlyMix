@@ -39,23 +39,6 @@ void multiply2(double **a, int arows, int acols,
 
 }
 
-/* Multiplies matrix a and vector x and puts the result in y which should be
- pre-allocated */
-
-void matxvec(double **a, int arows, int acols,
-		double *x, int xrows, double *y)
-{
-  int i, k;
-  
-  for (i=0; i<arows; i++){
-    y[i] = 0;
-    for (k=0; k<acols; k++){
-      y[i] += a[i][k] * x[k];
-    }
-  }
-
-}
-
 /*copies matrix A[k] to matrix B */
 
 void cpy1(double ***a, int k, int nrows, int ncols, double **b)

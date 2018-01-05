@@ -13,6 +13,50 @@
 #endif
 
 
+// Manly transformation for matrix Y
+void Manly_trans_AR(int p, int T, double *la, double **Y, double **MY){
+
+  int j, t;
+
+  for (j=0; j<p; j++){
+    if (fabs(la[j])<1e-12){
+      for(t=0; t<T; t++) {
+	MY[j][t] = Y[j][t];
+      }
+    } else{
+      for(t=0; t<T; t++) {
+	MY[j][t] = (exp(Y[j][t] * la[j]) - 1) / la[j];
+      }
+    }
+      
+  }
+
+}
+
+void Manly_trans_whole_AR(int n, int p, int T, double *la, double ***Y, double ***MY){
+
+  int i, j, t;
+ for(i=0; i<n; i++){
+
+
+  for (j=0; j<p; j++){
+    if (fabs(la[j])<1e-12){
+      for(t=0; t<T; t++) {
+	MY[j][t][i] = Y[j][t][i];
+      }
+    } else{
+      for(t=0; t<T; t++) {
+	MY[j][t][i] = (exp(Y[j][t][i] * la[j]) - 1) / la[j];
+      }
+    }
+      
+  }
+
+ }
+  
+}
+
+
 double mGpdf_Manly_AR(int p, int T, double *la, double **Y, double **Mu, double **invS, double **invPsi, double detS, double detPsi){
 
 	int j, t;
@@ -27,7 +71,7 @@ double mGpdf_Manly_AR(int p, int T, double *la, double **Y, double **Mu, double 
 
 
 	
-  	Manly_trans(p, T, la, Y, MY);
+  	Manly_trans_AR(p, T, la, Y, MY);
 	mat_(p, T, MY, Mu);
 
 	tA(MY, T, p, tMY);
@@ -190,13 +234,21 @@ void Estep_Manly_AR(int p, int T, int n, int K, double ***Y, double **la, double
 
 
 // Q-function
-double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, double *gamma_k, double **invPsik){
+double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, double *gamma_k, double **invPsik, int Mu_type){
   
 	int i, j, j1, j2, t, count;
-	double res, jac, sum_gamma, det1, det2;
+	double res, jac, sum_gamma, det1, det2, det;
 	double *la;
 	double **Sk, **temp3, **temp4;
-	double ***MY, **Muk, *Eig1, *Eig2, **MYi, **tMYi, **invPsik0;
+	double ***MY, **Muk, *Eig1, *Eig2, **MYi, **tMYi, **invPsik0, *Muk_vec, *MY_vec, *Eig, **L, **matconst, **invconst;
+
+	MAKE_VECTOR(Muk_vec, p+T-1);
+	MAKE_VECTOR(MY_vec, p+T-1);
+	MAKE_MATRIX(matconst, p+T-1, p+T-1);
+	MAKE_MATRIX(invconst, p+T-1, p+T-1);
+	MAKE_MATRIX(L, p+T-1, p+T-1);
+	MAKE_VECTOR(Eig, p+T-1);
+
 
 		
 	MAKE_VECTOR(la, p);
@@ -212,6 +264,60 @@ double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, do
 	MAKE_MATRIX(temp4, p, p);
 
 	MAKE_MATRIX(Muk, p, T);
+
+
+	Anull(matconst, p+T-1, p+T-1);
+	for(i=0; i<p; i++){	
+		for(j=0; j<p; j++){
+
+			if(i == j){
+				matconst[i][j] = T*1.0;
+			}
+
+		}
+	}
+
+	for(i=p; i<p+T-1; i++){	
+		for(j=p; j<p+T-1; j++){
+
+			if(i == j){
+				matconst[i][j] = p*1.0;
+			}
+
+		}
+	}
+
+	for(i=0; i<p; i++){	
+		for(j=p; j<p+T-1; j++){
+			matconst[i][j] = 1.0;
+
+		}
+	}
+	for(i=p; i<p+T-1; i++){	
+		for(j=0; j<p; j++){
+			matconst[i][j] = 1.0;
+
+		}
+	}
+	anull(Eig, p+T-1);
+
+	#ifdef __HAVE_R_
+		EigValDec(p+T-1, Eig, matconst, &det);
+	#else
+		cephes_symmeigens_down(p+T-1, Eig, matconst, &det);
+	#endif
+
+	Anull(L, p+T-1, p+T-1);
+
+	for (t=0; t<p+T-1; t++){
+		L[t][t] = 1.0 / Eig[t];
+		
+	}
+	
+	XAXt(matconst, p+T-1, L, invconst);
+
+
+
 
 	count = 0;
 
@@ -239,22 +345,71 @@ double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, do
 	}
 
 
-	Manly_trans_whole(n, p, T, la, Y, MY);
+	Manly_trans_whole_AR(n, p, T, la, Y, MY);
 	res = 0;
 	Anull(Muk, p, T);
-	for(i=0; i<n; i++){
+	if(Mu_type == 0){
+		for(i=0; i<n; i++){
+			for(j=0; j<p; j++){
+
+				for(t=0; t<T; t++){
+			
+					Muk[j][t] += gamma_k[i] * MY[j][t][i] / sum_gamma;
+
+
+				}
+			}
+		}
+	
+	}
+	else if(Mu_type == 1){
+
+		anull(MY_vec, p+T-1);
+	
+
+		for(j=0; j<p; j++){
+			for(i=0; i<n; i++){
+				for(t=0; t<T; t++){		
+					MY_vec[j] += gamma_k[i] * MY[j][t][i] / sum_gamma;
+	//printf(" Q  %lf\n",MY_vec[j]);
+
+
+				}
+			}
+		}
+
+
+		for(t=p; t<p+T-1; t++){
+			for(i=0; i<n; i++){
+				for(j=0; j<p; j++){		
+					MY_vec[t] += gamma_k[i] * MY[j][t-p][i] / sum_gamma;
+//printf(" Q  %lf\n",MY_vec[t]);
+
+				}
+			}
+		}
+
+
+		matxvec(invconst, p+T-1, p+T-1, MY_vec, p+T-1, Muk_vec);
+
+		//printf(" invconst %lf  %lf  %lf  %lf\n",invconst[0][0],invconst[1][1],invconst[0][2],invconst[2][0]);
+
 		for(j=0; j<p; j++){
 
 			for(t=0; t<T; t++){
 			
-				Muk[j][t] += gamma_k[i] * MY[j][t][i] / sum_gamma;
+				if(t<T-1){
+					Muk[j][t] = Muk_vec[j] +  Muk_vec[p+t];
 
-
+				}
+				else{
+					Muk[j][t] = Muk_vec[j];
+				}
 			}
 		}
-	}
-	
 
+
+	}
 
 
 	Anull(Sk, p, p);
@@ -328,6 +483,7 @@ double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, do
 
 
 		res = res + gamma_k[i] * jac;
+
 	}
 
 	//printf("Q res %lf \n", res);
@@ -344,6 +500,12 @@ double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, do
 	FREE_MATRIX(temp3);
 	FREE_MATRIX(temp4);
 
+	FREE_MATRIX(matconst);
+	FREE_MATRIX(invconst);
+	FREE_MATRIX(L);
+	FREE_VECTOR(Eig);
+	FREE_VECTOR(Muk_vec);
+	FREE_VECTOR(MY_vec);
 
 
 	FREE_MATRIX(Muk);
@@ -360,13 +522,20 @@ double Q_AR(int n, int p, int T, double *la_nonzero, int *index, double ***Y, do
 
 
 
-double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double ***Y, double **la, double **gamma, double ***invS, double ***Mu, double ***invPsi, double *detS, double *detPsi, double *tau){
+double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double ***Y, double **la, double **gamma, double ***invS, double ***Mu, double ***invPsi, double *detS, double *detPsi, double *tau, int Mu_type){
 
 	int i,j,j1,j2,k,t,t1,t2, sum_index, count, *index;
-	double *Q_value, Q_value0, min, min_value, eps, det, *sum_gamma, *gamma_k, **Psi, **S, **temp1, **temp2, **temp3, **temp4, **invPsik;
+	double *Q_value, Q_value0, min, min_value, eps, det, *sum_gamma, *gamma_k, **Psi, **S, **temp1, **temp2, **temp3, **temp4, **invPsik, *Eig, **L;
 	double **Muk, **invSk, **MYi, **tMYi, ***MY, *par, Psi2, phi, **A1, **A2, **I;
 	double *Eig1, *Eig2;
-	double **L1, **L2;
+	double **L1, **L2, *Muk_vec, *MY_vec, **matconst, **invconst;
+
+	MAKE_VECTOR(Muk_vec, p+T-1);
+	MAKE_VECTOR(MY_vec, p+T-1);
+	MAKE_MATRIX(matconst, p+T-1, p+T-1);
+	MAKE_MATRIX(invconst, p+T-1, p+T-1);
+	MAKE_MATRIX(L, p+T-1, p+T-1);
+	MAKE_VECTOR(Eig, p+T-1);
 
 
 	MAKE_3ARRAY(MY, p,T,n);
@@ -394,6 +563,57 @@ double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double **
 	MAKE_MATRIX(A1, T, T);
 	MAKE_MATRIX(A2, T, T);
 	MAKE_MATRIX(I, T, T);
+
+
+	Anull(matconst, p+T-1, p+T-1);
+	for(i=0; i<p; i++){	
+		for(j=0; j<p; j++){
+
+			if(i == j){
+				matconst[i][j] = T*1.0;
+			}
+
+		}
+	}
+
+	for(i=p; i<p+T-1; i++){	
+		for(j=p; j<p+T-1; j++){
+
+			if(i == j){
+				matconst[i][j] = p*1.0;
+			}
+
+		}
+	}
+
+	for(i=0; i<p; i++){	
+		for(j=p; j<p+T-1; j++){
+			matconst[i][j] = 1.0;
+
+		}
+	}
+	for(i=p; i<p+T-1; i++){	
+		for(j=0; j<p; j++){
+			matconst[i][j] = 1.0;
+
+		}
+	}
+	anull(Eig, p+T-1);
+
+	#ifdef __HAVE_R_
+		EigValDec(p+T-1, Eig, matconst, &det);
+	#else
+		cephes_symmeigens_down(p+T-1, Eig, matconst, &det);
+	#endif
+
+	Anull(L, p+T-1, p+T-1);
+
+	for (t=0; t<p+T-1; t++){
+		L[t][t] = 1.0 / Eig[t];
+		
+	}
+	
+	XAXt(matconst, p+T-1, L, invconst);
 
 
 
@@ -450,7 +670,7 @@ double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double **
 
 			//Q_value = Q(n, p, T, la_nonzero, index, Y, gamma_k, invSk);
 
-			min_value = simplex_AR(Q_AR, n, p, T, index, Y, gamma_k, invPsik, la_nonzero, eps, 0.1);
+			min_value = simplex_AR(Q_AR, n, p, T, index, Y, gamma_k, invPsik, la_nonzero, eps, 0.1, Mu_type);
 
 			count = 0;
 			for(j=0; j<p; j++){
@@ -477,7 +697,7 @@ double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double **
 
 			anull(la_nonzero, p);
 
-			Q_value[k] = Q_AR(n, p, T, la_nonzero, index, Y, gamma_k, invPsik);
+			Q_value[k] = Q_AR(n, p, T, la_nonzero, index, Y, gamma_k, invPsik, Mu_type);
 
 
 			FREE_VECTOR(la_nonzero);
@@ -492,26 +712,72 @@ double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double **
 
 	for(k=0; k<K; k++){
 
-		Manly_trans_whole(n, p, T, la[k], Y, MY);
+		Manly_trans_whole_AR(n, p, T, la[k], Y, MY);
 
+		if(Mu_type == 0){
+			for(i=0; i<n; i++){
 
-		for(i=0; i<n; i++){
+				cpyk(MY, p, T, i, MYi);
 
-			cpyk(MY, p, T, i, MYi);
+				for(j=0; j<p; j++){
 
-			for(j=0; j<p; j++){
-
-				for(t=0; t<T; t++){
+					for(t=0; t<T; t++){
 			
-					Mu[j][t][k] += gamma[i][k] * MYi[j][t] / sum_gamma[k];
+						Mu[j][t][k] += gamma[i][k] * MYi[j][t] / sum_gamma[k];
 
 
+					}
 				}
+
 			}
 
 		}
 
+		else if(Mu_type == 1){
 
+			anull(MY_vec, p+T-1);
+
+
+	
+			for(j=0; j<p; j++){
+				for(i=0; i<n; i++){
+					for(t=0; t<T; t++){		
+						MY_vec[j] += gamma[i][k] * MY[j][t][i] / sum_gamma[k];
+					}
+				}
+			}
+
+
+			for(t=p; t<p+T-1; t++){
+				for(i=0; i<n; i++){
+					for(j=0; j<p; j++){		
+						MY_vec[t] += gamma[i][k] * MY[j][t-p][i] / sum_gamma[k];
+					}
+				}
+			}
+
+
+			matxvec(invconst, p+T-1, p+T-1, MY_vec, p+T-1, Muk_vec);
+
+
+			for(j=0; j<p; j++){
+		
+				for(t=0; t<T; t++){
+			
+					if(t<T-1){
+						Mu[j][t][k] = Muk_vec[j] +  Muk_vec[p+t];
+
+					}
+					else{
+						Mu[j][t][k] = Muk_vec[j];
+					}
+				}
+
+
+			}
+	
+
+		}
 
 		cpyk(Mu, p, T, k, Muk);
 		cpyk(invPsi, T, T, k, invPsik);
@@ -647,6 +913,15 @@ double Mstep_Manly_AR(int p, int T, int n, int K, double *misc_double, double **
 
 
 	}
+
+	FREE_MATRIX(matconst);
+	FREE_MATRIX(invconst);
+	FREE_MATRIX(L);
+	FREE_VECTOR(Eig);
+	FREE_VECTOR(Muk_vec);
+	FREE_VECTOR(MY_vec);
+
+
 
 	FREE_VECTOR(par);
 
@@ -897,7 +1172,7 @@ void rootfinding(double (*func)(double, double *), double *start, double *coeff,
 
 
 
-void EM_Manly_AR(int p, int T, int n, int K, double ***Y, double **la, int max_iter, double *misc_double, double *tau, double ***Mu, double ***invS, double ***invPsi, double *detS, double *detPsi, double **gamma, int *id, double *ll, int *conv){
+void EM_Manly_AR(int p, int T, int n, int K, double ***Y, double **la, int max_iter, double *misc_double, double *tau, double ***Mu, double ***invS, double ***invPsi, double *detS, double *detPsi, double **gamma, int *id, double *ll, int *conv, int Mu_type){
 	int i,k,iter;
 	double eps,loglik_old,loglik,max;
 
@@ -913,7 +1188,7 @@ void EM_Manly_AR(int p, int T, int n, int K, double ***Y, double **la, int max_i
 
 		Estep_Manly_AR(p, T, n, K, Y, la, tau, Mu, invS, invPsi, detS, detPsi, gamma);
 
-		loglik_old = Mstep_Manly_AR(p, T, n, K, misc_double, Y, la, gamma, invS, Mu, invPsi, detS, detPsi, tau);
+		loglik_old = Mstep_Manly_AR(p, T, n, K, misc_double, Y, la, gamma, invS, Mu, invPsi, detS, detPsi, tau, Mu_type);
 
 							
 	}

@@ -39,7 +39,7 @@
 #define GAMMA       2.0       /* expansion coefficient */
 
 
-double simplex(double (*func)(int, int, int, double *, int *, double ***, double *, double **), int n1, int p, int T, int *index, double ***X, double *gamma_k, double **invSk, double *start, double EPSILON, double scale)
+double simplex1(double (*func)(int, int, int, double *, double *, int *, double ***, double *, double **, int), int n1, int p, int T, double *nu, int *index, double ***X, double *gamma_k, double **invPsik, double *start, double EPSILON, double scale, int Mu_type)
 {
   
   int vs;        	/* vertex with smallest value */
@@ -120,7 +120,7 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
   
   /* find the initial function values */
   for (j=0;j<=n;j++) {
-    f[j] = func(n1, p, T, v[j], index, X, gamma_k, invSk);
+    f[j] = func(n1, p, T, v[j], nu, index, X, gamma_k, invPsik, Mu_type);
   }
   
   k = n+1;
@@ -167,7 +167,7 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
     for (j=0;j<=n-1;j++) {
       vr[j] = (1+ALPHA)*vm[j] - ALPHA*v[vg][j];
     }
-    fr = func(n1, p, T, vr, index, X, gamma_k, invSk);
+    fr = func(n1, p, T, vr, nu, index, X, gamma_k, invPsik, Mu_type);
     k++;
     
     /* added <= */
@@ -184,7 +184,7 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
       for (j=0;j<=n-1;j++) {
 	ve[j] = GAMMA*vr[j] + (1-GAMMA)*vm[j];
       }
-      fe = func(n1, p, T, ve, index, X, gamma_k, invSk);
+      fe = func(n1, p, T, ve, nu, index, X, gamma_k, invPsik, Mu_type);
       k++;
       
    
@@ -207,7 +207,7 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
       for (j=0;j<=n-1;j++) {
 	vc[j] = BETA*v[vg][j] + (1-BETA)*vm[j];
       }
-      fc = func(n1, p, T, vc, index, X, gamma_k, invSk);
+      fc = func(n1, p, T, vc, nu, index, X, gamma_k, invPsik, Mu_type);
       k++;
       if (fc < f[vg]) {
 	for (j=0;j<=n-1;j++) {
@@ -228,9 +228,9 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
 	    }
 	  }
 	}
-	f[vg] = func(n1, p, T, v[vg], index, X, gamma_k, invSk);
+	f[vg] = func(n1, p, T, v[vg], nu, index, X, gamma_k, invPsik, Mu_type);
 	k++;
-	f[vh] = func(n1, p, T, v[vh], index, X, gamma_k, invSk);
+	f[vh] = func(n1, p, T, v[vh], nu, index, X, gamma_k, invPsik, Mu_type);
 	k++;
 	
 	
@@ -266,7 +266,7 @@ double simplex(double (*func)(int, int, int, double *, int *, double ***, double
   for (j=0;j<n;j++) {
     start[j] = v[vs][j];
   }
-  min=func(n1, p, T, v[vs], index, X, gamma_k, invSk);
+  min=func(n1, p, T, v[vs], nu, index, X, gamma_k, invPsik, Mu_type);
   k++;
   /*	printf("%d Function Evaluations\n",k);
 	printf("%d Iterations through program\n",itr);*/

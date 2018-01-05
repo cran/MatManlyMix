@@ -12,7 +12,7 @@ The utility of this package is the clustering of random matrices. Finite mixture
 Package: \tab MatManlyMix \cr
 Type: \tab Package\cr
 Version: \tab 0.1.1\cr
-Date: \tab 2017-08-02\cr
+Date: \tab 2017-02-09\cr
 License: \tab GPL (>= 2)\cr
 LazyLoad: \tab no\cr
 }

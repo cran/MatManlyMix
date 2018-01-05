@@ -10,7 +10,7 @@
 }
 \usage{data(crime)}
 \format{ 
-  A data frame with 236 observations on the following 10 variables from year 2000 through 2012. The data has been cleaned with no missing values. 
+  A list of 3 objects: Y, department and state. Y represents the crime rate data array from 236 cities. Department is the police department names and state represents the states where each city is located at. Y is of dimensionality 10 x 13 x 236 with 236 crime rates on the following 10 variables from year 2000 through 2012. 
   \describe{
    \item{Population}{Population of each city;}
    \item{Violent Crime rate}{Total number of violent crimes;}
